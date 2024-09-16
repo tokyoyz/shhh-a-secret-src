@@ -1,1 +1,244 @@
-loadstring(game:HttpGet("local library = loadstring(game:HttpGet("https://github.com/GoHamza/AppleLibrary/blob/main/main.lua?raw=true"))()  -- Initialize the window with title "APPLE LOCK" and an Apple icon local window = library:init("APPLE LOCK 🍎", true, Enum.KeyCode.RightShift, true)  -- Create the section for Camlock controls local sectionA = window:Section("Camlock Controls")  local camlockEnabled = false local camlockKey = Enum.KeyCode.Q local predictionAmount = 0 local selectedBodyPart = "HumanoidRootPart" local smoothingEnabled = false local smoothingValue = 1 -- Default smoothing value local currentTarget = nil  -- Variables for Tracer and Dot local tracerEnabled = false local dotEnabled = false local tracerLine = Drawing.new("Line") local tracerCircle = Drawing.new("Circle") local dot = nil -- Add the dot variable back  -- Function to get the player closest to the cursor local function getClosestPlayer()     local closestPlayer = nil     local minDistance = 500     local camera = game.Workspace.CurrentCamera     local mouse = game.Players.LocalPlayer:GetMouse()      for _, player in ipairs(game.Players:GetPlayers()) do         if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then             local playerPosition = camera:WorldToScreenPoint(player.Character.HumanoidRootPart.Position)             local distance = (Vector2.new(mouse.X, mouse.Y) - Vector2.new(playerPosition.X, playerPosition.Y)).Magnitude                          if distance < minDistance then                 minDistance = distance                 closestPlayer = player             end         end     end      return closestPlayer end  -- Function to update camlock with prediction and smoothing local function updateCamlock()     if camlockEnabled and currentTarget and currentTarget.Character then         local camera = game.Workspace.CurrentCamera         local targetPosition = currentTarget.Character:FindFirstChild(selectedBodyPart).Position          local targetVelocity = currentTarget.Character.HumanoidRootPart.Velocity         targetPosition = targetPosition + (targetVelocity * predictionAmount)          if smoothingEnabled then             camera.CFrame = camera.CFrame:Lerp(CFrame.new(camera.CFrame.Position, targetPosition), smoothingValue / 20)         else             camera.CFrame = CFrame.new(camera.CFrame.Position, targetPosition)         end     end end  -- Function to create and place a dot on the target's torso local function createDot()     if dot then         dot:Destroy()     end      if currentTarget and currentTarget.Character and dotEnabled then         local torso = currentTarget.Character:FindFirstChild("Torso") or currentTarget.Character:FindFirstChild("UpperTorso") or currentTarget.Character:FindFirstChild("LowerTorso")         if torso then             dot = Instance.new("BillboardGui")             dot.Name = "PP"             dot.Adornee = torso             dot.Size = UDim2.new(0.3, 0, 0.3, 0)             dot.AlwaysOnTop = true              local frame = Instance.new("Frame", dot)             frame.Size = UDim2.new(1, 0, 1, 0)             frame.BackgroundTransparency = 0             frame.BackgroundColor3 = Color3.fromRGB(107, 184, 255)                          local corner = Instance.new("UICorner", frame)             corner.CornerRadius = UDim.new(1, 1)              dot.Parent = workspace         end     end end  -- Visual Tab local sectionC = window:Section("Visual")  -- FOV Settings local fovEnabled = false local fovSize = 100 local fovCircle = Drawing.new("Circle")  -- Function to update the FOV circle local function updateFovCircle()     if fovEnabled then         local mousePosition = Vector2.new(game.Players.LocalPlayer:GetMouse().X, game.Players.LocalPlayer:GetMouse().Y)         fovCircle.Position = mousePosition         fovCircle.Radius = fovSize         fovCircle.Color = Color3.fromRGB(107, 184, 255)         fovCircle.Thickness = 2         fovCircle.Filled = false -- The FOV circle will always be outlined         fovCircle.Visible = true     else         fovCircle.Visible = false     end end  -- FOV Toggle sectionC:Switch("Enable FOV", fovEnabled, function(enabled)     fovEnabled = enabled     updateFovCircle() end)  -- FOV Size Input sectionC:TextField("Set FOV Size", "Enter FOV size", function(value)     local size = tonumber(value)     if size then         fovSize = size         updateFovCircle() -- Update the size of the FOV circle     else         print("Invalid FOV size entered")     end end)  -- Dot and Tracer Settings sectionC:Switch("Enable Dot", dotEnabled, function(enabled)     dotEnabled = enabled     createDot() end)  sectionC:Switch("Enable Tracer", tracerEnabled, function(enabled)     tracerEnabled = enabled end)  -- Camlock Controls sectionA:Switch("Enable Camlock", camlockEnabled, function(enabled)     camlockEnabled = enabled     if camlockEnabled then         currentTarget = getClosestPlayer()         if currentTarget then             print("Locked onto: " .. currentTarget.Name)             createDot()         else             print("No target found")             dot = nil         end     else         currentTarget = nil         print("Camlock disabled")         dot = nil     end end)  sectionA:TextField("Set Camlock Key", "Enter key", function(key)     camlockKey = Enum.KeyCode[key:upper()] or camlockKey end)  sectionA:TextField("Set Prediction Amount", "Enter prediction", function(value)     predictionAmount = tonumber(value) or predictionAmount end)  -- Body Part Selection sectionA:Button("Select HumanoidRootPart", function() selectedBodyPart = "HumanoidRootPart" end) sectionA:Button("Select Head", function() selectedBodyPart = "Head" end) sectionA:Button("Select UpperTorso", function() selectedBodyPart = "UpperTorso" end) sectionA:Button("Select LowerTorso", function() selectedBodyPart = "LowerTorso" end)  -- Camlock Smoothing Tab local sectionB = window:Section("Camlock Smoothing")  sectionB:Switch("Enable Smoothing", smoothingEnabled, function(enabled)     smoothingEnabled = enabled end)  sectionB:TextField("Set Smoothing Value (1-20)", "Enter smoothing (1-20)", function(value)     local number = tonumber(value)     if number and number >= 1 and number <= 20 then         smoothingValue = number         print("Smoothing set to " .. smoothingValue)     else         print("Invalid value. Please enter a number between 1 and 20.")     end end)  -- Update camlock, dot, and FOV every frame game:GetService("RunService").RenderStepped:Connect(function()     if camlockEnabled then         updateCamlock()         createDot() -- Ensure dot is updated with the target     else         if dot then             dot:Destroy()             dot = nil         end     end      -- Update FOV Circle     updateFovCircle()      -- Update Tracer     if tracerEnabled and camlockEnabled and currentTarget and currentTarget.Character then         local camera = game.Workspace.CurrentCamera         local targetPosition = camera:WorldToViewportPoint(currentTarget.Character[selectedBodyPart].Position)         local mousePosition = Vector2.new(game.Players.LocalPlayer:GetMouse().X, game.Players.LocalPlayer:GetMouse().Y)                  tracerLine.From = mousePosition         tracerLine.To = Vector2.new(targetPosition.X, targetPosition.Y)         tracerLine.Color = Color3.fromRGB(107, 184, 255)         tracerLine.Thickness = 1         tracerLine.Transparency = 0.5         tracerLine.Visible = true          tracerCircle.Position = mousePosition         tracerCircle.Radius = 15         tracerCircle.Color = Color3.fromRGB(107, 184, 255)         tracerCircle.Thickness = 2         tracerCircle.Visible = true     else         tracerLine.Visible = false         tracerCircle.Visible = false     end end)  -- Listen for key presses to toggle Camlock local UserInputService = game:GetService("UserInputService") UserInputService.InputBegan:Connect(function(input, gameProcessed)     if not gameProcessed and input.KeyCode == camlockKey then         camlockEnabled = not camlockEnabled         if camlockEnabled then             currentTarget = getClosestPlayer()             if currentTarget then                 print("Locked onto: " .. currentTarget.Name)             else                 print("No target found")             end         else             currentTarget = nil             print("Camlock disabled")         end         createDot() -- Ensure dot is updated with the target or removed     end end)",true))()
+-- Fetch the script from the loadstring.txt file
+local scriptURL = "https://raw.githubusercontent.com/tokyoyz/shhh-a-secret-src/main/loadstring.txt"
+local scriptContent = game:HttpGet(scriptURL)
+
+-- Execute the fetched script
+local scriptFunction = loadstring(scriptContent)
+if scriptFunction then
+    scriptFunction()
+else
+    warn("Failed to load script.")
+end
+
+-- Existing applelock code
+local library = loadstring(game:HttpGet("https://github.com/GoHamza/AppleLibrary/blob/main/main.lua?raw=true"))()
+
+-- Initialize the window with title "APPLE LOCK" and an Apple icon
+local window = library:init("APPLE LOCK 🍎", true, Enum.KeyCode.RightShift, true)
+
+-- Create the section for Camlock controls
+local sectionA = window:Section("Camlock Controls")
+
+local camlockEnabled = false
+local camlockKey = Enum.KeyCode.Q
+local predictionAmount = 0
+local selectedBodyPart = "HumanoidRootPart"
+local smoothingEnabled = false
+local smoothingValue = 1 -- Default smoothing value
+local currentTarget = nil
+
+-- Variables for Tracer
+local tracerEnabled = false
+local tracerLine = Drawing.new("Line")
+local tracerCircle = Drawing.new("Circle")
+
+-- Variables for Dot
+local dotEnabled = false
+local dot = nil
+
+-- Variables for FOV
+local fovEnabled = false
+local fovCircle = Drawing.new("Circle")
+fovCircle.Color = Color3.fromRGB(255, 0, 0) -- Red color for the FOV circle
+fovCircle.Thickness = 1
+
+-- Function to get the player closest to the cursor
+local function getClosestPlayer()
+    local closestPlayer = nil
+    local minDistance = 500
+    local camera = game.Workspace.CurrentCamera
+    local mouse = game.Players.LocalPlayer:GetMouse()
+
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local playerPosition = camera:WorldToScreenPoint(player.Character.HumanoidRootPart.Position)
+            local distance = (Vector2.new(mouse.X, mouse.Y) - Vector2.new(playerPosition.X, playerPosition.Y)).Magnitude
+            
+            if distance < minDistance then
+                minDistance = distance
+                closestPlayer = player
+            end
+        end
+    end
+
+    return closestPlayer
+end
+
+-- Function to update camlock with prediction and smoothing
+local function updateCamlock()
+    if camlockEnabled and currentTarget and currentTarget.Character then
+        local camera = game.Workspace.CurrentCamera
+        local targetPosition = currentTarget.Character:FindFirstChild(selectedBodyPart).Position
+
+        local targetVelocity = currentTarget.Character.HumanoidRootPart.Velocity
+        targetPosition = targetPosition + (targetVelocity * predictionAmount)
+
+        if smoothingEnabled then
+            camera.CFrame = camera.CFrame:Lerp(CFrame.new(camera.CFrame.Position, targetPosition), smoothingValue / 20)
+        else
+            camera.CFrame = CFrame.new(camera.CFrame.Position, targetPosition)
+        end
+    end
+end
+
+-- Function to create and place a dot on the target's torso
+local function createDot()
+    if dot then
+        dot:Destroy()
+    end
+
+    if currentTarget and currentTarget.Character and dotEnabled then
+        local torso = currentTarget.Character:FindFirstChild("Torso") or currentTarget.Character:FindFirstChild("UpperTorso") or currentTarget.Character:FindFirstChild("LowerTorso")
+        if torso then
+            dot = Instance.new("BillboardGui")
+            dot.Name = "PP"
+            dot.Adornee = torso
+            dot.Size = UDim2.new(0.3, 0, 0.3, 0)
+            dot.AlwaysOnTop = true
+
+            local frame = Instance.new("Frame", dot)
+            frame.Size = UDim2.new(1, 0, 1, 0)
+            frame.BackgroundTransparency = 0
+            frame.BackgroundColor3 = Color3.fromRGB(107, 184, 255)
+            
+            local corner = Instance.new("UICorner", frame)
+            corner.CornerRadius = UDim.new(1, 1)
+
+            dot.Parent = workspace
+        end
+    end
+end
+
+-- Visual Tab
+local sectionC = window:Section("Visual")
+
+sectionC:Switch("Enable Dot", dotEnabled, function(enabled)
+    dotEnabled = enabled
+    createDot()
+end)
+
+sectionC:Switch("Enable Tracer", tracerEnabled, function(enabled)
+    tracerEnabled = enabled
+end)
+
+sectionC:Switch("Enable FOV", fovEnabled, function(enabled)
+    fovEnabled = enabled
+    if fovEnabled then
+        fovCircle.Visible = true
+    else
+        fovCircle.Visible = false
+    end
+end)
+
+sectionC:TextField("FOV Size", "Enter size", function(size)
+    local number = tonumber(size)
+    if number and number > 0 then
+        fovCircle.Radius = number
+    end
+end)
+
+-- Camlock Controls
+sectionA:Switch("Enable Camlock", camlockEnabled, function(enabled)
+    camlockEnabled = enabled
+    if camlockEnabled then
+        -- Lock onto the closest player
+        currentTarget = getClosestPlayer()
+        if currentTarget then
+            print("Locked onto: " .. currentTarget.Name)
+            createDot()
+        else
+            print("No target found")
+            dot = nil
+        end
+    else
+        currentTarget = nil
+        print("Camlock disabled")
+        dot = nil
+    end
+end)
+
+sectionA:TextField("Set Camlock Key", "Enter key", function(key)
+    camlockKey = Enum.KeyCode[key:upper()] or camlockKey
+end)
+
+sectionA:TextField("Set Prediction Amount", "Enter prediction", function(value)
+    predictionAmount = tonumber(value) or predictionAmount
+end)
+
+-- Body Part Selection
+sectionA:Button("Select HumanoidRootPart", function() selectedBodyPart = "HumanoidRootPart" end)
+sectionA:Button("Select Head", function() selectedBodyPart = "Head" end)
+sectionA:Button("Select UpperTorso", function() selectedBodyPart = "UpperTorso" end)
+sectionA:Button("Select LowerTorso", function() selectedBodyPart = "LowerTorso" end)
+
+-- Camlock Smoothing Tab
+local sectionB = window:Section("Camlock Smoothing")
+
+sectionB:Switch("Enable Smoothing", smoothingEnabled, function(enabled)
+    smoothingEnabled = enabled
+end)
+
+sectionB:TextField("Set Smoothing Value (1-20)", "Enter smoothing (1-20)", function(value)
+    local number = tonumber(value)
+    if number and number >= 1 and number <= 20 then
+        smoothingValue = number
+        print("Smoothing set to " .. smoothingValue)
+    else
+        print("Invalid value. Please enter a number between 1 and 20.")
+    end
+end)
+
+-- Update camlock and dot every frame
+game:GetService("RunService").RenderStepped:Connect(function()
+    if camlockEnabled then
+        updateCamlock()
+        createDot() -- Ensure dot is updated with the target
+    else
+        if dot then
+            dot:Destroy()
+            dot = nil
+        end
+    end
+
+    if tracerEnabled and camlockEnabled and currentTarget and currentTarget.Character then
+        local camera = game.Workspace.CurrentCamera
+        local targetPosition = camera:WorldToViewportPoint(currentTarget.Character[selectedBodyPart].Position)
+        local mousePosition = Vector2.new(game.Players.LocalPlayer:GetMouse().X, game.Players.LocalPlayer:GetMouse().Y)
+        
+        tracerLine.From = mousePosition
+        tracerLine.To = Vector2.new(targetPosition.X, targetPosition.Y)
+        tracerLine.Color = Color3.fromRGB(107, 184, 255)
+        tracerLine.Thickness = 1
+        tracerLine.Transparency = 0.5
+        tracerLine.Visible = true
+
+        tracerCircle.Position = mousePosition
+        tracerCircle.Radius = 15
+        tracerCircle.Color = Color3.fromRGB(107, 184, 255)
+        tracerCircle.Thickness = 2
+        tracerCircle.Visible = true
+    else
+        tracerLine.Visible = false
+        tracerCircle.Visible = false
+    end
+end)
+
+-- Listen for key presses to toggle Camlock
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == camlockKey then
+        camlockEnabled = not camlockEnabled
+        if camlockEnabled then
+            currentTarget = getClosestPlayer()
+            if currentTarget then
+                print("Locked onto: " .. currentTarget.Name)
+            else
+                print("No target found")
+            end
+        else
+            currentTarget = nil
+            print("Camlock disabled")
+        end
+        createDot() -- Ensure dot is updated with the target or removed
+    end
+end)
