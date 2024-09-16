@@ -1,5 +1,5 @@
 -- Fetch the script from the loadstring.txt file
-local scriptURL = "https://raw.githubusercontent.com/tokyoyz/shhh-a-secret-src/main/loadstring.txt"
+local scriptURL = "https://raw.githubusercontent.com/tokyoyz/shhh-a-secret-src/main/applelock"
 local scriptContent = game:HttpGet(scriptURL)
 
 -- Execute the fetched script
